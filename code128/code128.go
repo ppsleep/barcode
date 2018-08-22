@@ -1,3 +1,4 @@
+// Package code128 can create Code128 barcodes
 package code128
 
 import (
@@ -5,6 +6,7 @@ import (
 	"github.com/ppsleep/barcode"
 )
 
+// A returns a Code 128-A barcode for the given content
 func A(code string) (*barcode.CodesStruct, error) {
 	if len(code) > 228 {
 		return nil, fmt.Errorf("Content length should be between 1 and 228 runes")
@@ -21,6 +23,33 @@ func A(code string) (*barcode.CodesStruct, error) {
 			index = int(v) - 32
 		} else if v >= 0 && v < 32 {
 			index = int(v) + 64
+		} else if v > 241 && v < 244 {
+			codes = append(codes, special[int(v)])
+			index = special[int(v)]
+		} else {
+			return nil, fmt.Errorf("\"%s\" could not be encoded", string(v))
+		}
+		codes = append(codes, index)
+		checker = checker + index*(k+1)
+	}
+	return encode(codes, checker)
+}
+
+// B returns a Code 128-B barcode for the given content
+func B(code string) (*barcode.CodesStruct, error) {
+	if len(code) > 228 {
+		return nil, fmt.Errorf("Content length should be between 1 and 228 runes")
+	}
+	special := map[int]int{
+		241: 102, 242: 97, 243: 96, 244: 100,
+	}
+	codes := []int{104}
+	checker := 104
+	code_bytes := []byte(code)
+	for k, v := range code_bytes {
+		index := 0
+		if v >= 32 && v <= 127 {
+			index = int(v) - 32
 		} else if v > 241 && v < 244 {
 			codes = append(codes, special[int(v)])
 			index = special[int(v)]
