@@ -62,6 +62,29 @@ func B(code string) (*barcode.CodesStruct, error) {
 	return encode(codes, checker)
 }
 
+// C returns a Code 128-C barcode for the given content
+func C(code string) (*barcode.CodesStruct, error) {
+	len := len(code)
+	if len > 228 {
+		return nil, fmt.Errorf("Content length should be between 1 and 228 runes")
+	}
+	if len%2 != 0 {
+		return nil, fmt.Errorf("Length must be even")
+	}
+	code_bytes := []byte(code)
+	codes := []int{105}
+	checker := 105
+	for i := 0; i < len; i = i + 2 {
+		if code_bytes[i] < 48 || code_bytes[i] > 57 || code_bytes[i+1] < 48 || code_bytes[i+1] > 57 {
+			return nil, fmt.Errorf("Only digits allowed")
+		}
+		item := int((code_bytes[i]-48)*10 + code_bytes[i+1] - 48)
+		checker = checker + item*(i/2+1)
+		codes = append(codes, item)
+	}
+	return encode(codes, checker)
+}
+
 func encode(codes []int, sum int) (*barcode.CodesStruct, error) {
 	codes = append(codes, sum%103)
 	codes = append(codes, 106)
