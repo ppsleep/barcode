@@ -8,7 +8,7 @@ This is a barcode generation package for Golang
 
 This is a simple example of creating a barcode in Code 128-A encoding format.
 
-```
+```go
 package main
 
 import (
