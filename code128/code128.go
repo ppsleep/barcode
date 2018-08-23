@@ -6,6 +6,102 @@ import (
 	"github.com/ppsleep/barcode"
 )
 
+func autoFormat(code_bytes []byte, codes []int, encoding int) ([]int, error) {
+	length := len(code_bytes)
+	if length <= 0 {
+		return codes, nil
+	}
+	for i := 0; i < length; i++ {
+		cursor := 0
+		if c := formatC(code_bytes, encoding); c != nil {
+			codes = append(codes, c...)
+			cursor = len(c)
+			encoding = 105
+		} else if a := formatA(code_bytes[i]); a > -1 {
+			if encoding == 0 {
+				codes = append(codes, 103)
+			} else if encoding != 103 {
+				codes = append(codes, 101)
+			}
+			encoding = 103
+			codes = append(codes, a)
+		} else {
+			b, err := formatB(code_bytes[i])
+			if err != nil {
+				return nil, err
+			}
+			if encoding == 0 {
+				codes = append(codes, 104)
+			} else if encoding != 104 {
+				codes = append(codes, 100)
+			}
+			encoding = 104
+			codes = append(codes, b)
+		}
+		return autoFormat(code_bytes[i+cursor+1:], codes, encoding)
+	}
+	return codes, nil
+}
+
+func formatA(code_byte byte) int {
+	if code_byte >= 0 && code_byte < 32 {
+		return int(code_byte) + 64
+	}
+	return -1
+}
+
+func formatB(code_byte byte) (int, error) {
+	special := map[int]int{
+		241: 102, 242: 97, 243: 96, 244: 100,
+	}
+	index := 0
+	if code_byte >= 32 && code_byte <= 127 {
+		index = int(code_byte) - 32
+	} else if code_byte > 241 && code_byte < 244 {
+		index = special[int(code_byte)]
+	} else {
+		return -1, fmt.Errorf("\"%s\" could not be encoded", string(code_byte))
+	}
+	return index, nil
+}
+
+func formatC(code_bytes []byte, encoding int) []int {
+	var data []int
+	length := 4
+	if encoding == 0 {
+		data = append(data, 105)
+	} else if encoding == 105 {
+		length = 2
+	} else {
+		data = append(data, 99)
+	}
+	if len(code_bytes) < length {
+		return nil
+	}
+	for i := 0; i < length; i = i + 2 {
+		if code_bytes[i] < 48 || code_bytes[i] > 57 || code_bytes[i+1] < 48 || code_bytes[i+1] > 57 {
+			return nil
+		}
+		item := int((code_bytes[i]-48)*10 + code_bytes[i+1] - 48)
+		data = append(data, item)
+	}
+	return data
+}
+
+// Auto returns a Code 128-Auto barcode for the given content
+func Auto(code string) (*barcode.CodesStruct, error) {
+	if len(code) > 228 {
+		return nil, fmt.Errorf("Content length should be between 1 and 228 runes")
+	}
+	code_bytes := []byte(code)
+	codes := []int{}
+	data, err := autoFormat(code_bytes, codes, 0)
+	if err != nil {
+		return nil, err
+	}
+	return encode(data)
+}
+
 // A returns a Code 128-A barcode for the given content
 func A(code string) (*barcode.CodesStruct, error) {
 	if len(code) > 228 {
@@ -15,9 +111,8 @@ func A(code string) (*barcode.CodesStruct, error) {
 		241: 102, 242: 97, 243: 96, 244: 101,
 	}
 	codes := []int{103}
-	checker := 103
 	code_bytes := []byte(code)
-	for k, v := range code_bytes {
+	for _, v := range code_bytes {
 		index := 0
 		if v >= 32 && v <= 95 {
 			index = int(v) - 32
@@ -30,9 +125,8 @@ func A(code string) (*barcode.CodesStruct, error) {
 			return nil, fmt.Errorf("\"%s\" could not be encoded", string(v))
 		}
 		codes = append(codes, index)
-		checker = checker + index*(k+1)
 	}
-	return encode(codes, checker)
+	return encode(codes)
 }
 
 // B returns a Code 128-B barcode for the given content
@@ -40,53 +134,50 @@ func B(code string) (*barcode.CodesStruct, error) {
 	if len(code) > 228 {
 		return nil, fmt.Errorf("Content length should be between 1 and 228 runes")
 	}
-	special := map[int]int{
-		241: 102, 242: 97, 243: 96, 244: 100,
-	}
 	codes := []int{104}
-	checker := 104
 	code_bytes := []byte(code)
-	for k, v := range code_bytes {
-		index := 0
-		if v >= 32 && v <= 127 {
-			index = int(v) - 32
-		} else if v > 241 && v < 244 {
-			codes = append(codes, special[int(v)])
-			index = special[int(v)]
-		} else {
-			return nil, fmt.Errorf("\"%s\" could not be encoded", string(v))
+	for _, v := range code_bytes {
+		index, err := formatB(v)
+		if err != nil {
+			return nil, err
 		}
 		codes = append(codes, index)
-		checker = checker + index*(k+1)
 	}
-	return encode(codes, checker)
+	return encode(codes)
 }
 
 // C returns a Code 128-C barcode for the given content
 func C(code string) (*barcode.CodesStruct, error) {
-	len := len(code)
-	if len > 228 {
+	length := len(code)
+	if length > 228 {
 		return nil, fmt.Errorf("Content length should be between 1 and 228 runes")
 	}
-	if len%2 != 0 {
+	if length%2 != 0 {
 		return nil, fmt.Errorf("Length must be even")
 	}
 	code_bytes := []byte(code)
 	codes := []int{105}
-	checker := 105
-	for i := 0; i < len; i = i + 2 {
+	for i := 0; i < length; i = i + 2 {
 		if code_bytes[i] < 48 || code_bytes[i] > 57 || code_bytes[i+1] < 48 || code_bytes[i+1] > 57 {
 			return nil, fmt.Errorf("Only digits allowed")
 		}
 		item := int((code_bytes[i]-48)*10 + code_bytes[i+1] - 48)
-		checker = checker + item*(i/2+1)
 		codes = append(codes, item)
 	}
-	return encode(codes, checker)
+	return encode(codes)
 }
 
-func encode(codes []int, sum int) (*barcode.CodesStruct, error) {
-	codes = append(codes, sum%103)
+func checker(codes []int) int {
+	checkDigit := codes[0]
+	for k, v := range codes[1:] {
+		checkDigit = checkDigit + v*(k+1)
+	}
+	return checkDigit % 103
+}
+
+func encode(codes []int) (*barcode.CodesStruct, error) {
+	checkDigit := checker(codes)
+	codes = append(codes, checkDigit)
 	codes = append(codes, 106)
 	codes = append(codes, 107)
 	pattern := pattern()
