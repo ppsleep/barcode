@@ -1,5 +1,7 @@
 # Barcode
 
+[![GoDoc](https://godoc.org/github.com/ppsleep/barcode?status.svg)](https://godoc.org/github.com/ppsleep/barcode)
+
 ## Introduction
 
 This is a barcode generation package for Golang
