@@ -14,6 +14,7 @@ type CodesStruct struct {
 	Width int
 }
 
+// Encode returns a new RGBA image with the barcode
 func Encode(code *CodesStruct, size, height int) *image.RGBA {
 	img := image.NewRGBA(image.Rect(0, 0, code.Width*size, height))
 	offset := 0

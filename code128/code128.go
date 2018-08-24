@@ -6,6 +6,13 @@ import (
 	"github.com/ppsleep/barcode"
 )
 
+var specialA = map[int]int{
+	241: 102, 242: 97, 243: 96, 244: 101,
+}
+var specialB = map[int]int{
+	241: 102, 242: 97, 243: 96, 244: 100,
+}
+
 func autoFormat(code_bytes []byte, codes []int, encoding int) ([]int, error) {
 	length := len(code_bytes)
 	if length <= 0 {
@@ -51,14 +58,11 @@ func formatA(code_byte byte) int {
 }
 
 func formatB(code_byte byte) (int, error) {
-	special := map[int]int{
-		241: 102, 242: 97, 243: 96, 244: 100,
-	}
 	index := 0
 	if code_byte >= 32 && code_byte <= 127 {
 		index = int(code_byte) - 32
 	} else if code_byte > 241 && code_byte < 244 {
-		index = special[int(code_byte)]
+		index = specialB[int(code_byte)]
 	} else {
 		return -1, fmt.Errorf("\"%s\" could not be encoded", string(code_byte))
 	}
@@ -107,9 +111,6 @@ func A(code string) (*barcode.CodesStruct, error) {
 	if len(code) > 228 {
 		return nil, fmt.Errorf("Content length should be between 1 and 228 runes")
 	}
-	special := map[int]int{
-		241: 102, 242: 97, 243: 96, 244: 101,
-	}
 	codes := []int{103}
 	code_bytes := []byte(code)
 	for _, v := range code_bytes {
@@ -119,8 +120,8 @@ func A(code string) (*barcode.CodesStruct, error) {
 		} else if v >= 0 && v < 32 {
 			index = int(v) + 64
 		} else if v > 241 && v < 244 {
-			codes = append(codes, special[int(v)])
-			index = special[int(v)]
+			codes = append(codes, specialA[int(v)])
+			index = specialA[int(v)]
 		} else {
 			return nil, fmt.Errorf("\"%s\" could not be encoded", string(v))
 		}
